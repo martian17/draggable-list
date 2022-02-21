@@ -32,6 +32,8 @@ class OrderedListItem extends ELEM{//always sandwiched between shadows
         [["mousedown","mousemove","mouseup"],["touchstart","touchmove","touchend"]].map(([movestart,moveduring,moveend])=>{
             handle.on(movestart,(e)=>{
                 e.preventDefault();
+                let pageX = e.pageX || e.touches[0].pageX;
+                let pageY = e.pageY || e.touches[0].pageY;
                 let rect = that.e.getBoundingClientRect();
                 let homeShadow = that.getPrev();
                 homeShadow.expandInstant(rect.height);
@@ -42,12 +44,13 @@ class OrderedListItem extends ELEM{//always sandwiched between shadows
                 that.style(`
                     position:absolute;
                     pointer-events:none;
+                    touch-action: none;
                     width:${rect.width}px;
                     height:${rect.height}px;
-                    transform:translate(${rect.x-e.pageX}px, ${rect.y-e.pageY}px);
+                    transform:translate(${rect.x-pageX}px, ${rect.y-pageY}px);
                     margin:0px;
-                    top:${e.pageY}px;
-                    left:${e.pageX}px;
+                    top:${pageY}px;
+                    left:${pageX}px;
                     z-index:1;
                 `);
                 dragging = {
@@ -57,10 +60,12 @@ class OrderedListItem extends ELEM{//always sandwiched between shadows
                 };
                 
                 let moveListener = ewindow.on(moveduring,(e)=>{
-                    e.preventDefault();
+                    let pageX = e.pageX || e.touches[0].pageX;
+                    let pageY = e.pageY || e.touches[0].pageY;
+                    //e.preventDefault();
                     that.style(`
-                        top:${e.pageY}px;
-                        left:${e.pageX}px;
+                        top:${pageY}px;
+                        left:${pageX}px;
                     `);
                 });
                 let upListener = ewindow.on(moveend,(e)=>{
@@ -71,6 +76,7 @@ class OrderedListItem extends ELEM{//always sandwiched between shadows
                     dragging = false;
                     that.style(`
                         position:static;
+                        touch-action: static;
                         pointer-events:auto;
                         width:auto;
                         height:auto;
@@ -84,12 +90,16 @@ class OrderedListItem extends ELEM{//always sandwiched between shadows
         });
         ["touchmove","mousemove"].map(moveduring=>{
             this.on(moveduring,(e)=>{
+                let pageX = e.pageX || e.touches[0].pageX;
+                let pageY = e.pageY || e.touches[0].pageY;
                 if(!dragging)return;
                 if(!(dragging.target instanceof OrderedListItem))return;
+                if(dragging.target === that)return;
+                console.log("moving!");
                 //determine if the cursor is on the top side or the bottom side of the elem
                 let box = that.e.getBoundingClientRect();
                 let h = box.height;
-                let ly = e.pageY-box.y;
+                let ly = pageY-box.y;
                 let r = ly/h;
                 let shadow;
                 if(r < 0.5){
@@ -102,7 +112,7 @@ class OrderedListItem extends ELEM{//always sandwiched between shadows
                 let items = this.parent.children.toArray().filter(c=>c instanceof OrderedListItem);
                 items.map(pre_transition);
                 dragging.shadow.collapse();
-                dragging.shadow = shadow
+                dragging.shadow = shadow;
                 shadow.expand(dragging.rect.height);
                 items.map(post_transition);
                 //pre_transition();
