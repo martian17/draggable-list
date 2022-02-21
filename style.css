@@ -1,0 +1,23 @@
+body{
+    margin:0px;
+    font-family:arial;
+}
+
+
+.droparea{
+    width:100%;
+    min-height: 3em;
+    border-radius: 1em;
+    box-sizing:border-box;
+    border:2px dashed #aaa;
+    font-size: 2em;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+}
+
+.droparea:hover{
+    border:2px dashed #ccc;
+}
+
+
