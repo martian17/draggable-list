@@ -82,29 +82,31 @@ class OrderedListItem extends ELEM{//always sandwiched between shadows
                 });
             });
         });
-        this.on("mousemove",(e)=>{
-            if(!dragging)return;
-            if(!(dragging.target instanceof OrderedListItem))return;
-            //determine if the cursor is on the top side or the bottom side of the elem
-            let box = that.e.getBoundingClientRect();
-            let h = box.height;
-            let ly = e.pageY-box.y;
-            let r = ly/h;
-            let shadow;
-            if(r < 0.5){
-                shadow = that.getPrev();
-            }else{
-                shadow = that.getNext();
-            }
-            if(shadow === dragging.shadow)return;//same old shadow
-            //transition thing
-            let items = this.parent.children.toArray().filter(c=>c instanceof OrderedListItem);
-            items.map(pre_transition);
-            dragging.shadow.collapse();
-            dragging.shadow = shadow
-            shadow.expand(dragging.rect.height);
-            items.map(post_transition);
-            //pre_transition();
+        ["touchmove","mousemove"].map(moveduring=>{
+            this.on(moveduring,(e)=>{
+                if(!dragging)return;
+                if(!(dragging.target instanceof OrderedListItem))return;
+                //determine if the cursor is on the top side or the bottom side of the elem
+                let box = that.e.getBoundingClientRect();
+                let h = box.height;
+                let ly = e.pageY-box.y;
+                let r = ly/h;
+                let shadow;
+                if(r < 0.5){
+                    shadow = that.getPrev();
+                }else{
+                    shadow = that.getNext();
+                }
+                if(shadow === dragging.shadow)return;//same old shadow
+                //transition thing
+                let items = this.parent.children.toArray().filter(c=>c instanceof OrderedListItem);
+                items.map(pre_transition);
+                dragging.shadow.collapse();
+                dragging.shadow = shadow
+                shadow.expand(dragging.rect.height);
+                items.map(post_transition);
+                //pre_transition();
+            });
         });
     }
 };
