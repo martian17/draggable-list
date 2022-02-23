@@ -1,7 +1,3 @@
-//global context variable
-let dragging = false; //global object pointing to the object in dragging
-
-
 let dragMgr = function(elem, start, move, end) {
     elem.on("mousedown", (e) => {
         start(e.pageX, e.pageY, e);
