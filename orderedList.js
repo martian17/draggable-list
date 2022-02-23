@@ -6,6 +6,7 @@ let dragMgr = function(elem, start, move, end) {
     elem.on("mousedown", (e) => {
         start(e.pageX, e.pageY, e);
         let onmove = (e) => {
+            //console.log(e.pageY);
             move(e.pageX, e.pageY, e);
         };
         let onend = (e) => {
@@ -35,7 +36,7 @@ let dragMgr = function(elem, start, move, end) {
 
 class OrderedListItem extends ELEM { //always sandwiched between shadows
     static popups = (() => {
-        let popups = new ELEM("div");
+        let popups = new ELEM("div",0,0,"style:height:0px;position:absolute;top:0px;left:0px;");
         document.body.appendChild(popups.e);
         return popups;
     })();
@@ -76,15 +77,18 @@ class OrderedListItem extends ELEM { //always sandwiched between shadows
                 that.shadow.expandInstant(rect.height);
                 that.getNext().remove(); //removing the next shadow
                 that.rect = rect;
-
+                
+                console.log(window.scrollY);
                 that.remove();
                 popups.add(that);
+                console.log(rect.y,window.scrollY,y);
+                console.log(rect.y+window.scrollY-y);
                 that.style(`
                     position:absolute;
                     pointer-events:none;
                     width:${rect.width}px;
                     height:${rect.height}px;
-                    transform:translate(${rect.x-x}px, ${rect.y-y}px);
+                    transform:translate(${rect.x+window.scrollX-x}px, ${rect.y+window.scrollY-y}px);
                     margin:0px;
                     top:${y}px;
                     left:${x}px;
@@ -100,9 +104,9 @@ class OrderedListItem extends ELEM { //always sandwiched between shadows
                 let target = that.instanceFromPoint(x, y);
                 if (!target) return; //no underlying item
                 //processing the underlying item
-                let box = target.e.getBoundingClientRect();
-                let h = box.height;
-                let ly = y - box.y;
+                let rect = target.e.getBoundingClientRect();
+                let h = rect.height;
+                let ly = y - rect.y - window.scrollY;
                 let r = ly / h;
                 let shadow;
                 if (r < 0.5) {
@@ -140,6 +144,8 @@ class OrderedListItem extends ELEM { //always sandwiched between shadows
     }
 
     instanceFromPoint(x, y) {
+        x -= window.scrollX;
+        y -= window.scrollY;
         let map = this.constructor.instances;
         let elem = document.elementFromPoint(x, y);
         let instance = undefined;
