@@ -175,7 +175,7 @@ class OrderedListShadow extends ELEM {
         //just some ordinary interpolation function
         return r;
     }
-    addAnimation(direction, h0, m0, duration) { //ehight and margin are in that of the natural state
+    addAnimation(direction, h0, m0, duration) { //height and margin are in that of the natural state
         let animations = this.animations;
         animations.push({
             direction,
