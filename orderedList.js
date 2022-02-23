@@ -1,162 +1,201 @@
 //global context variable
-let dragging = false;//global object pointing to the object in dragging
+let dragging = false; //global object pointing to the object in dragging
 
 
-class OrderedListItem extends ELEM{//always sandwiched between shadows
-    static popups = (()=>{
+let dragMgr = function(elem, start, move, end) {
+    elem.on("mousedown", (e) => {
+        start(e.pageX, e.pageY, e);
+        let onmove = (e) => {
+            move(e.pageX, e.pageY, e);
+        };
+        let onend = (e) => {
+            window.removeEventListener("mousemove",onmove);
+            window.removeEventListener("mouseup",onend);
+            end(e);
+        };
+        window.addEventListener("mousemove", onmove);
+        window.addEventListener("mouseup", onend);
+    });
+    elem.on("touchstart", (e) => {
+        start(e.touches[0].pageX, e.touches[0].pageY, e);
+        let onmove = (e) => {
+            move(e.touches[0].pageX, e.touches[0].pageY, e);
+        };
+        let onend = (e) => {
+            window.removeEventListener("touchmove",onmove);
+            window.removeEventListener("touchend",onend);
+            end(e);
+        };
+        window.addEventListener("touchmove", onmove);
+        window.addEventListener("touchend", onend);
+    });
+};
+
+
+
+class OrderedListItem extends ELEM { //always sandwiched between shadows
+    static popups = (() => {
         let popups = new ELEM("div");
         document.body.appendChild(popups.e);
         return popups;
     })();
     //window wrapper
-    static ewindow = new (function(){
-        this.on = function(evt,cb){
-            window.addEventListener(evt,cb);
+    static ewindow = new(function() {
+        this.on = function(evt, cb) {
+            window.addEventListener(evt, cb);
             return {
-                remove:()=>{
-                    window.removeEventListener(evt,cb);
+                remove: () => {
+                    window.removeEventListener(evt, cb);
                 }
             };
         }
     })();
-    constructor(){
-        super("div","class:list-item");
+    static instances = new WeakMap();
+    shadow;
+    rect;
+    constructor() {
+        super("div", "class:list-item");
+        //whenever it's constructed, add the div to the static weak map
+        this.constructor.instances.set(this.e, this);
         let popups = this.constructor.popups;
         let ewindow = this.constructor.ewindow;
         let that = this;
-        let label = this.add("div","class:label");
-        let handle = this.add("div","class:handle");
-        range(0,3).map(i=>handle.add("div"));
+        let label = this.add("div", "class:label");
+        let handle = this.add("div", "class:handle");
+        range(0, 3).map(i => handle.add("div"));
         this.label = label;
         this.handle = handle;
-        [["mousedown","mousemove","mouseup"],["touchstart","touchmove","touchend"]].map(([movestart,moveduring,moveend])=>{
-            handle.on(movestart,(e)=>{
+
+        //unified events for touch and mouse
+        dragMgr(handle,
+            //drag start
+            (x, y, e) => {
                 e.preventDefault();
-                let pageX = e.pageX || e.touches[0].pageX;
-                let pageY = e.pageY || e.touches[0].pageY;
                 let rect = that.e.getBoundingClientRect();
-                let homeShadow = that.getPrev();
-                homeShadow.expandInstant(rect.height);
-                that.getNext().remove();//removing the next shadow
-                
+                that.shadow = that.getPrev();
+                that.shadow.expandInstant(rect.height);
+                that.getNext().remove(); //removing the next shadow
+                that.rect = rect;
+
                 that.remove();
                 popups.add(that);
                 that.style(`
                     position:absolute;
                     pointer-events:none;
-                    touch-action: none;
                     width:${rect.width}px;
                     height:${rect.height}px;
-                    transform:translate(${rect.x-pageX}px, ${rect.y-pageY}px);
+                    transform:translate(${rect.x-x}px, ${rect.y-y}px);
                     margin:0px;
-                    top:${pageY}px;
-                    left:${pageX}px;
+                    top:${y}px;
+                    left:${x}px;
                     z-index:1;
                 `);
-                dragging = {
-                    target:that,
-                    rect:rect,
-                    shadow:homeShadow
-                };
-                
-                let moveListener = ewindow.on(moveduring,(e)=>{
-                    let pageX = e.pageX || e.touches[0].pageX;
-                    let pageY = e.pageY || e.touches[0].pageY;
-                    //e.preventDefault();
-                    that.style(`
-                        top:${pageY}px;
-                        left:${pageX}px;
-                    `);
-                });
-                let upListener = ewindow.on(moveend,(e)=>{
-                    e.preventDefault();
-                    moveListener.remove();
-                    upListener.remove();
-                    let shadow = dragging.shadow || homeShadow;
-                    dragging = false;
-                    that.style(`
-                        position:static;
-                        touch-action: static;
-                        pointer-events:auto;
-                        width:auto;
-                        height:auto;
-                        transform:none;
-                        z-index:0;
-                    `);
-                    that.e.style.margin = null;
-                    shadow.insert(that);
-                });
-            });
-        });
-        ["touchmove","mousemove"].map(moveduring=>{
-            this.on(moveduring,(e)=>{
-                let pageX = e.pageX || e.touches[0].pageX;
-                let pageY = e.pageY || e.touches[0].pageY;
-                if(!dragging)return;
-                if(!(dragging.target instanceof OrderedListItem))return;
-                if(dragging.target === that)return;
-                console.log("moving!");
-                //determine if the cursor is on the top side or the bottom side of the elem
-                let box = that.e.getBoundingClientRect();
+            },
+            //drag move
+            (x, y, e) => {
+                that.style(`
+                    top:${y}px;
+                    left:${x}px;
+                `);
+                let target = that.instanceFromPoint(x, y);
+                if (!target) return; //no underlying item
+                //processing the underlying item
+                let box = target.e.getBoundingClientRect();
                 let h = box.height;
-                let ly = pageY-box.y;
-                let r = ly/h;
+                let ly = y - box.y;
+                let r = ly / h;
                 let shadow;
-                if(r < 0.5){
-                    shadow = that.getPrev();
-                }else{
-                    shadow = that.getNext();
+                if (r < 0.5) {
+                    shadow = target.getPrev();
+                } else {
+                    shadow = target.getNext();
                 }
-                if(shadow === dragging.shadow)return;//same old shadow
+                if (shadow === that.shadow) return; //same old shadow
                 //transition thing
-                let items = this.parent.children.toArray().filter(c=>c instanceof OrderedListItem);
+                let items = target.parent.children.toArray().filter(c => c instanceof OrderedListItem);
                 items.map(pre_transition);
-                dragging.shadow.collapse();
-                dragging.shadow = shadow;
-                shadow.expand(dragging.rect.height);
+                that.shadow.collapse();
+                that.shadow = shadow;
+                shadow.expand(that.rect.height);
                 items.map(post_transition);
-                //pre_transition();
-            });
-        });
+
+            },
+            //drag end
+            (e) => {
+                let shadow = that.shadow;
+                that.style(`
+                    position:static;
+                    pointer-events:auto;
+                    width:auto;
+                    height:auto;
+                    transform:none;
+                    z-index:0;
+                `);
+                that.e.style.margin = null;
+                shadow.insert(that);
+                that.shadow = null;
+                that.rect = null;
+            }
+        );
     }
+
+    instanceFromPoint(x, y) {
+        let map = this.constructor.instances;
+        let elem = document.elementFromPoint(x, y);
+        let instance = undefined;
+        while (elem !== null) {
+            if (instance = map.get(elem)) {
+                break;
+            }
+            elem = elem.parentNode;
+        }
+        if (!instance) return null;
+        return instance;
+    }
+
 };
 
-class OrderedListShadow extends ELEM{
+class OrderedListShadow extends ELEM {
     transition = 100;
     height = 0;
-    margin = 5;//0em or whatever
+    margin = 5; //0em or whatever
     baseMargin = 0;
     baseHeight = 0;
     animations = [];
-    constructor(){
-        super("div","class:shadow");
+    constructor() {
+        super("div", "class:shadow");
     }
-    interpolate(r){
+    interpolate(r) {
         //just some ordinary interpolation function
         return r;
     }
-    addAnimation(direction,h0,m0,duration){//ehight and margin are in that of the natural state
+    addAnimation(direction, h0, m0, duration) { //ehight and margin are in that of the natural state
         let animations = this.animations;
-        animations.push({direction,h0,m0,duration});
-        if(animations.length !== 1)return;//already an animation running
-        
+        animations.push({
+            direction,
+            h0,
+            m0,
+            duration
+        });
+        if (animations.length !== 1) return; //already an animation running
+
         let that = this;
-        let animationCB = function(t){
+        let animationCB = function(t) {
             let h = that.baseHeight;
             let m = that.baseMargin;
-            let validUntil = 0;//index until which the time has ran out and the animation has ended
-            for(let i = 0; i < animations.length; i++){
+            let validUntil = 0; //index until which the time has ran out and the animation has ended
+            for (let i = 0; i < animations.length; i++) {
                 let a = animations[i];
-                if(!a.start)a.start = t;//initialization after the first encounter
-                let dt = t-a.start;
-                let r = dt/a.duration;
-                if(r >= 1){//animation part end
-                    validUntil = i+1;
+                if (!a.start) a.start = t; //initialization after the first encounter
+                let dt = t - a.start;
+                let r = dt / a.duration;
+                if (r >= 1) { //animation part end
+                    validUntil = i + 1;
                     r = 1;
-                    if(direction === 1){
+                    if (direction === 1) {
                         that.baseHeight = a.h0;
                         that.baseMargin = a.m0;
-                    }else{
+                    } else {
                         that.baseHeight = 0;
                         that.baseMargin = 0;
                     }
@@ -164,61 +203,59 @@ class OrderedListShadow extends ELEM{
                 r = that.interpolate(r);
                 //direction positive: expanding into h0 m0
                 //direction negative: collapsing from h0 m0
-                h += a.direction*a.h0*r;
-                m += a.direction*a.m0*r;
+                h += a.direction * a.h0 * r;
+                m += a.direction * a.m0 * r;
             }
-            animations.splice(0,validUntil);
-            that.setState(h,m);
-            if(animations.length !== 0){
+            animations.splice(0, validUntil);
+            that.setState(h, m);
+            if (animations.length !== 0) {
                 requestAnimationFrame(animationCB);
-            }else if(that.inserting){
+            } else if (that.inserting) {
                 //animation has all but ended
                 let item = that.inserting;
                 that.inserting = false;
-                that.parent.insertBefore(item,that);
-                that.parent.insertBefore(new OrderedListShadow(),item);
+                that.parent.insertBefore(item, that);
+                that.parent.insertBefore(new OrderedListShadow(), item);
             }
         };
         requestAnimationFrame(animationCB);
     }
-    expand(h){//they need to laternate
+    expand(h) { //they need to laternate
         this.height = h;
-        this.setState(h,10);
+        this.setState(h, 10);
         //this.addAnimation(1,h,this.margin,this.duration);
     }
-    collapse(){
+    collapse() {
         this.height = 0;
-        this.setState(0,0);
+        this.setState(0, 0);
         //this.addAnimation(-1,this.height,this.margin,this.duration);
     }
-    expandInstant(h){
+    expandInstant(h) {
         this.height = h;
-        this.setState(h,10);
+        this.setState(h, 10);
         /*this.baseHeight = h;
         this.baseMargin = this.margin;
         this.setState(h,this.margin);*/
     }
-    setState(h,m){
+    setState(h, m) {
         this.style(`height:${h}px;margin-top:${m}px;margin-bottom:${m}px;`);
     }
-    insert(item){
+    insert(item) {
         this.collapse();
-        this.parent.insertBefore(item,this);
-        this.parent.insertBefore(new OrderedListShadow(),item);
+        this.parent.insertBefore(item, this);
+        this.parent.insertBefore(new OrderedListShadow(), item);
     }
 };
 
 
-class OrderedList extends ELEM{
-    constructor(){
-        super("div","class:ordered-list");
+class OrderedList extends ELEM {
+    constructor() {
+        super("div", "class:ordered-list");
         //always comes with one shadow
         super.add(new OrderedListShadow());
     }
-    add(item){
+    add(item) {
         super.add(item);
-        super.add(new OrderedListShadow());//shadow comes after the said item
+        super.add(new OrderedListShadow()); //shadow comes after the said item
     }
 };
-
-
