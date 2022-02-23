@@ -73,12 +73,8 @@ class OrderedListItem extends ELEM { //always sandwiched between shadows
                 that.shadow.expandInstant(rect.height);
                 that.getNext().remove(); //removing the next shadow
                 that.rect = rect;
-                
-                console.log(window.scrollY);
                 that.remove();
                 popups.add(that);
-                console.log(rect.y,window.scrollY,y);
-                console.log(rect.y+window.scrollY-y);
                 that.style(`
                     position:absolute;
                     pointer-events:none;
