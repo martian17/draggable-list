@@ -29,6 +29,40 @@ let dragMgr = function(elem, start, move, end) {
 };
 
 
+//get elements between each other
+let getBetween = function(i1,i2){
+    let map1 = i1.parent?.children;
+    let map2 = i2.parent?.children;
+    if(!map1 && !map2){
+        throw new Error("neither of the objects have parents or the parents don't have children");
+    }else if(map1 !== map2){
+        return (map1.toArray()||[]).concat(map2.toArray()||[]);
+    }
+    let maplist = map1;//they're the same
+    let e1 = i1;
+    let e2 = i2;
+    let a1 = [];
+    let a2 = [];
+    while(i1 || i2){
+        if(i1 !== null){
+            i1 = maplist.getNext(i1);
+            a1.push(i1);
+            if(i1 === e2){
+                return a1;
+            }
+        }
+        if(i2 !== null){
+            i2 = maplist.getNext(i2);
+            a2.push(i2);
+            if(i2 === e1){
+                return a2;
+            }
+        }
+    }
+    throw new Error("inconsistent child references");
+};
+
+
 
 class OrderedListItem extends ELEM { //always sandwiched between shadows
     static popups = (() => {
@@ -108,7 +142,9 @@ class OrderedListItem extends ELEM { //always sandwiched between shadows
                 }
                 if (shadow === that.shadow) return; //same old shadow
                 //transition thing
-                let items = target.parent.children.toArray().filter(c => c instanceof OrderedListItem);
+                //getting items betweeb that.shadow and shadow
+                let items = getBetween(that.shadow,shadow).filter(c => c instanceof OrderedListItem);
+                //target.parent.children.toArray().filter(c => c instanceof OrderedListItem);
                 items.map(pre_transition);
                 that.shadow.collapse();
                 that.shadow = shadow;
