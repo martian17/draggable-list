@@ -154,6 +154,7 @@ class OrderedListItem extends ELEM { //always sandwiched between shadows
             },
             //drag end
             (e) => {
+                pre_transition(that);
                 let shadow = that.shadow;
                 that.style(`
                     position:static;
@@ -167,6 +168,7 @@ class OrderedListItem extends ELEM { //always sandwiched between shadows
                 shadow.insert(that);
                 that.shadow = null;
                 that.rect = null;
+                post_transition(that);
             }
         );
     }
